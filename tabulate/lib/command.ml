@@ -69,7 +69,8 @@ let ok_process t =
       | Some time ->
           let time_diff = Time_ns.diff (Time_ns.now ()) time in
           new_words > new_word_thresh
-          || (Time_ns.Span.(time_diff > time_span_thresh) && new_words > 0))
+          || Time_ns.Span.(time_diff > time_span_thresh)
+             && not (String.( = ) t.transcription t.existing_transcription))
 
 let handle_transcription t text =
   (* CR eddieli: make sure this doesn't include chunk times *)
