@@ -59,7 +59,7 @@ def get_patient_data():
     """
     return {
         "side": "left",
-        "site": "brain",
+        "site": "abdomen",
         "allergies": ["Digoxin"],
     }
 
@@ -83,7 +83,7 @@ def get_mistakes(data, sim_graph, id_to_name, name_to_id):
         mistakes.append(["Wrong_side"])
 
     # SITE
-    for site in data["site"]:
+    for site in data["sites"]:
         if site != patient["site"]:
             mistakes.append(["Wrong_site",
                             {"actual": patient["site"], "wrong": site}])
