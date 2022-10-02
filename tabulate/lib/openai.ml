@@ -1,7 +1,7 @@
 open Core
 open Async
 
-type t = { key : string }
+type t = { key : string } [@@deriving sexp]
 
 let create ~key = { key }
 
@@ -10,6 +10,8 @@ let completion { key } ~model ~max_tokens ~temperature ~prompt =
     [
       "-k";
       key;
+      "api";
+      "completions.create";
       "-m";
       model;
       "-M";
@@ -20,4 +22,4 @@ let completion { key } ~model ~max_tokens ~temperature ~prompt =
       prompt;
     ]
   in
-  Process.run ~prog:"ocaml" ~args ()
+  Process.run ~prog:"openai" ~args ()

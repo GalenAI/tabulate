@@ -1,7 +1,7 @@
 open Core
 open Async
 
-type t
+type t [@@deriving sexp]
 
 val create : key:string -> t
 
