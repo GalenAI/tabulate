@@ -28,7 +28,7 @@ def get_drug_mappings():
 def get_interactions(drug_names, sim_graph, id_to_name, name_to_id):
     """
     Computes existing interactions in drug_names by querying subgraph
-    of sim_graph. 
+    of sim_graph.
 
     :param drug_ids: list of drug names
     :param sim_graph: similarity graph over all drug ids in BioSNAP
@@ -44,7 +44,7 @@ def get_interactions(drug_names, sim_graph, id_to_name, name_to_id):
 def test_intersections():
     """
     Tests for common interactions between drugs. Uses pytest to run.
-    See https://www.goodrx.com/healthcare-access/medication-education/drug-interactions. 
+    See https://www.goodrx.com/healthcare-access/medication-education/drug-interactions.
     """
     sg = get_sim_graph()
     id_to_name, name_to_id = get_drug_mappings()
@@ -66,7 +66,7 @@ def get_patient_data():
 
 def get_mistakes(data, sim_graph, id_to_name, name_to_id):
     """
-    Returns all possible mistakes given surgery data. 
+    Returns all possible mistakes given surgery data.
 
     :param data: surgery data with side, site, medications
     :param sim_graph: similarity graph over all drug ids in BioSNAP
@@ -78,16 +78,16 @@ def get_mistakes(data, sim_graph, id_to_name, name_to_id):
     mistakes = []
     patient = get_patient_data()
 
-    # SIDE 
-    if data["side"] is not None and data["side"][0] != patient["side"]:
+    # SIDE
+    if data["side"] is not None and data["side"][0].lower() != patient["side"]:
         mistakes.append(["Wrong_side"])
 
     # SITE
-    if data["site"] is not None and data["site"] != patient["site"]:
+    if data["site"] is not None and data["site"].lower() != patient["site"]:
         mistakes.append(["Wrong_site",
                         {"actual": patient["site"], "wrong": data["site"]}])
 
-    # ALLERGIES 
+    # ALLERGIES
     drugs = [d.capitalize() for d in data["medications"]]
     allergies = patient["allergies"]
     mistakes.extend([["Drug_allergy", d] for d in drugs if d in allergies])
@@ -101,18 +101,20 @@ def get_mistakes(data, sim_graph, id_to_name, name_to_id):
 def main():
     context = zmq.Context()
     in_socket = context.socket(zmq.SUB)
-    in_socket.bind("ipc:///tmp/parsed")
+    in_socket.connect("ipc:///tmp/parsed")
     in_socket.subscribe("")
 
     out_socket = context.socket(zmq.PUB)
-    out_socket.connect("ipc:///tmp/mistakes")
+    out_socket.bind("ipc:///tmp/mistakes")
 
     sim_graph = get_sim_graph()
     id_to_name, name_to_id = get_drug_mappings()
 
     while True:
         data = in_socket.recv_json()
+        print(f"[INFO] Received data {data}")
         mistakes = get_mistakes(data, sim_graph, id_to_name, name_to_id)
+        print(f"[INFO] Sending {mistakes}")
         out_socket.send_json(mistakes)
 
 if __name__ == '__main__':

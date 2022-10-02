@@ -1,4 +1,3 @@
 open! Core
-open! Async
 
-let () = Command.run ~version:"1.0" Tabulate.Command.command
+let () = Command_unix.run ~version:"1.0" Tabulate.Command.command

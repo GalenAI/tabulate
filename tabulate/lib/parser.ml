@@ -24,13 +24,15 @@ type t = {
 let%expect_test "empty" =
   [%yojson_of: t] { side = None; site = None; medications = [] }
   |> Yojson.Safe.to_string |> print_endline;
-  [%expect {| {"side":null,"site":null,"medications":[]} |}]
+  [%expect {| {"side":null,"site":null,"medications":[]} |}];
+  Deferred.unit
 
 let%expect_test "normal" =
   [%yojson_of: t]
     { side = Some `Right; site = Some "abdomen"; medications = [ "adderall" ] }
   |> Yojson.Safe.to_string |> print_endline;
-  [%expect {| {"side":["Right"],"site":"abdomen","medications":["adderall"]} |}]
+  [%expect {| {"side":["Right"],"site":"abdomen","medications":["adderall"]} |}];
+  Deferred.unit
 
 let find_line_with_prefix item prefix lines =
   List.filter_map lines ~f:(String.chop_prefix ~prefix)
@@ -75,7 +77,8 @@ let%expect_test "test completion" =
     |> Or_error.ok_exn
   in
   print_s [%sexp (parsed : t)];
-  [%expect {| ((side (Left)) (site (abdomen)) (medications (a b c d))) |}]
+  [%expect {| ((side (Left)) (site (abdomen)) (medications (a b c d))) |}];
+  Deferred.unit
 
 let parse openai transcription =
   let open Deferred.Or_error.Let_syntax in

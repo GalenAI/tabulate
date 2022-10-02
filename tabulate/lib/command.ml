@@ -21,7 +21,8 @@ module Mistakes = struct
 
   let%expect_test "empty list" =
     [%yojson_of: t list] [] |> Yojson.Safe.to_string |> print_endline;
-    [%expect {| [] |}]
+    [%expect {| [] |}];
+    Deferred.unit
 
   let%expect_test "all possible" =
     [%yojson_of: t list]
@@ -33,7 +34,8 @@ module Mistakes = struct
       ]
     |> Yojson.Safe.to_string |> print_endline;
     [%expect
-      {| [["Drug_to_drug",{"first":"a","second":"b"}],["Drug_allergy","test"],["Wrong_side"],["Wrong_site",{"actual":"a","wrong":"b"}]] |}]
+      {| [["Drug_to_drug",{"first":"a","second":"b"}],["Drug_allergy","test"],["Wrong_side"],["Wrong_site",{"actual":"a","wrong":"b"}]] |}];
+    Deferred.unit
 end
 
 type t = {
@@ -41,7 +43,7 @@ type t = {
   mutable existing_transcription : string;
   (* CR eddieli: We might want to make sure that GPT requests can never be made
      concurrently. *)
-  mutable last_gpt_time : Time_ns.t option;
+  mutable last_gpt_time : Time_ns_unix.t option;
   mutable existing_mistakes : Mistakes.Set.t;
   openai : Openai.t;
   const_out_socket : ([ `Pub ] Zmq_async.Socket.t[@sexp.opaque]);
@@ -74,7 +76,9 @@ let zmq_pub_socket ctx ~addr =
   socket
 
 let handle_parsed t parsed =
+  print_s [%message "[INFO] Parsed" (parsed : Parser.t)];
   let parsed_json = [%yojson_of: Parser.t] parsed |> Yojson.Safe.to_string in
+  print_endline parsed_json;
   Zmq_async.Socket.send t.const_out_socket parsed_json
 
 let count_new_words { transcription; existing_transcription; _ } =
@@ -82,12 +86,15 @@ let count_new_words { transcription; existing_transcription; _ } =
   |> String.split ~on:' ' |> List.length
 
 let ok_process t =
-  let new_words = count_new_words t in
-  match t.last_gpt_time with
-  | None -> true
-  | Some time ->
-      let time_diff = Time_ns.diff (Time_ns.now ()) time in
-      new_words > new_word_thresh && Time_ns.Span.(time_diff > time_span_thresh)
+  match t.transcription with
+  | "" -> false
+  | _ -> (
+      let new_words = count_new_words t in
+      match t.last_gpt_time with
+      | None -> true
+      | Some time ->
+          let time_diff = Time_ns.diff (Time_ns.now ()) time in
+          new_words > new_word_thresh || Time_ns.Span.(time_diff > time_span_thresh))
 
 let handle_transcription t text =
   (* CR eddieli: make sure this doesn't include chunk times *)
@@ -95,6 +102,7 @@ let handle_transcription t text =
   match ok_process t with
   | false -> Deferred.unit
   | true -> (
+      print_endline "[INFO] Sending transcription...";
       t.last_gpt_time <- Time_ns.now () |> Some;
       t.existing_transcription <- t.transcription;
       match%bind Parser.parse t.openai t.transcription with
@@ -111,12 +119,14 @@ let handle_mistake t text =
           |> [%of_yojson: Mistakes.t list] |> Mistakes.Set.of_list)
       |> return
     in
-    let new_mistakes = Set.diff t.existing_mistakes mistakes in
+    print_s [%message "[INFO] Parsed mistakes" (mistakes : Mistakes.Set.t)];
+    let new_mistakes = Set.diff mistakes t.existing_mistakes in
     t.existing_mistakes <- Set.union t.existing_mistakes mistakes;
     match Set.is_empty new_mistakes with
     | true -> Deferred.Or_error.ok_unit
     | false ->
         let new_mistakes = Set.to_list new_mistakes in
+        print_s [%message "[INFO] New mistakes" (new_mistakes : Mistakes.t list)];
         let new_mistakes_json =
           [%yojson_of: Mistakes.t list] new_mistakes |> Yojson.Safe.to_string
         in
