@@ -83,9 +83,10 @@ def get_mistakes(data, sim_graph, id_to_name, name_to_id):
         mistakes.append(["Wrong_side"])
 
     # SITE
-    if data["site"] is not None and data["site"].lower() != patient["site"]:
-        mistakes.append(["Wrong_site",
-                        {"actual": patient["site"], "wrong": data["site"]}])
+    for site in data["site"]:
+        if site != patient["site"]:
+            mistakes.append(["Wrong_site",
+                            {"actual": patient["site"], "wrong": site}])
 
     # ALLERGIES
     drugs = [d.capitalize() for d in data["medications"]]

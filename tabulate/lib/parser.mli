@@ -3,7 +3,7 @@ open Async
 
 type t = {
   side : [ `Left | `Right ] option;
-  site : string option;
+  sites : string list;
   medications : string list;
 }
 [@@deriving sexp, yojson_of]

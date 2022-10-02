@@ -26,22 +26,22 @@ Prompt: |}
 
 type t = {
   side : [ `Left | `Right ] option;
-  site : string option;
+  sites : string list;
   medications : string list;
 }
 [@@deriving sexp, yojson_of]
 
 let%expect_test "empty" =
-  [%yojson_of: t] { side = None; site = None; medications = [] }
+  [%yojson_of: t] { side = None; sites = []; medications = [] }
   |> Yojson.Safe.to_string |> print_endline;
-  [%expect {| {"side":null,"site":null,"medications":[]} |}];
+  [%expect {| {"side":null,"sites":[],"medications":[]} |}];
   Deferred.unit
 
 let%expect_test "normal" =
   [%yojson_of: t]
-    { side = Some `Right; site = Some "abdomen"; medications = [ "adderall" ] }
+    { side = Some `Right; sites = [ "abdomen" ]; medications = [ "adderall" ] }
   |> Yojson.Safe.to_string |> print_endline;
-  [%expect {| {"side":["Right"],"site":"abdomen","medications":["adderall"]} |}];
+  [%expect {| {"side":["Right"],"sites":["abdomen"],"medications":["adderall"]} |}];
   Deferred.unit
 
 let find_line_with_prefix item prefix lines =
@@ -58,9 +58,11 @@ let get_side lines =
   | "RIGHT" -> Ok `Right
   | _ -> Or_error.error_s [%message "Invalid side" side_raw]
 
-let get_site lines =
+let get_sites lines =
   let%map.Or_error site_raw = find_line_with_prefix "site" "Site: " lines in
-  String.lowercase site_raw
+  String.split site_raw ~on:','
+  |> List.map ~f:String.strip
+  |> List.map ~f:String.lowercase
 
 let get_medications lines =
   let%map.Or_error medications_raw =
@@ -73,13 +75,13 @@ let get_medications lines =
 let parse_completion completion =
   let lines = String.split_lines completion in
   let side = get_side lines |> Or_error.ok in
-  let site = get_site lines |> Or_error.ok in
+  let sites = match get_sites lines with Ok sites -> sites | Error _ -> [] in
   let medications =
     match get_medications lines with
     | Ok medications -> medications
     | Error _ -> []
   in
-  Ok { side; site; medications }
+  Ok { side; sites; medications }
 
 let%expect_test "test completion" =
   let parsed =
@@ -87,7 +89,7 @@ let%expect_test "test completion" =
     |> Or_error.ok_exn
   in
   print_s [%sexp (parsed : t)];
-  [%expect {| ((side (Left)) (site (abdomen)) (medications (a b c d))) |}];
+  [%expect {| ((side (Left)) (sites (abdomen)) (medications (a b c d))) |}];
   Deferred.unit
 
 let parse openai transcription =
