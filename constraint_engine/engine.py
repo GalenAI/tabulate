@@ -79,11 +79,11 @@ def get_mistakes(data, sim_graph, id_to_name, name_to_id):
     patient = get_patient_data()
 
     # SIDE 
-    if data["side"][0] != patient["side"]:
+    if data["side"] is not None and data["side"][0] != patient["side"]:
         mistakes.append(["Wrong_side"])
 
     # SITE
-    if data["site"] != patient["site"]:
+    if data["site"] is not None and data["site"] != patient["site"]:
         mistakes.append(["Wrong_site",
                         {"actual": patient["site"], "wrong": data["site"]}])
 
@@ -100,16 +100,20 @@ def get_mistakes(data, sim_graph, id_to_name, name_to_id):
 
 def main():
     context = zmq.Context()
-    socket = context.socket(zmq.SUB)
-    socket.bind("tcp://*:9995")
+    in_socket = context.socket(zmq.SUB)
+    in_socket.bind("ipc:///tmp/parsed")
+    in_socket.subscribe("")
+
+    out_socket = context.socket(zmq.PUB)
+    out_socket.connect("ipc:///tmp/mistakes")
 
     sim_graph = get_sim_graph()
     id_to_name, name_to_id = get_drug_mappings()
 
     while True:
-        data = socket.recv_json()
+        data = in_socket.recv_json()
         mistakes = get_mistakes(data, sim_graph, id_to_name, name_to_id)
-        socket.send_json(mistakes)
+        out_socket.send_json(mistakes)
 
 if __name__ == '__main__':
     main()
