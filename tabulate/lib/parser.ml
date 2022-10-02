@@ -4,15 +4,25 @@ open Async
 let pre_prompt =
   {|Given a prompt, extract the names of drugs present in the prompt. Also extract the side of the operation (left or right) and the site of the operation (arm, leg, head, etc...).
 
-Example:
-
 Prompt: We will administer 500 ccs of ibuprofen. Violent political speech has increasingly crossed into the realm of in-person confrontation for members of Congress in both parties, raising the prospect of a disastrous event. Begin him on an IV drip of epinephrine. We will make an incision on the right arm
 
 Side: Right
 Site: Arm
 Medications: ibuprofen, epinephrine
 
-Real: |}
+Prompt: This is a distraction. Not a surgery.
+
+Side:
+Site:
+Medications:
+
+Prompt: I'm cutting into him on the left side of his brain.
+
+Side: Left
+Site: Brain
+Medications:
+
+Prompt: |}
 
 type t = {
   side : [ `Left | `Right ] option;
@@ -85,7 +95,7 @@ let parse openai transcription =
   let prompt = pre_prompt ^ transcription in
   let%bind completion =
     Openai.completion openai ~model:"text-davinci-002" ~max_tokens:256
-      ~temperature:0.7 ~prompt
+      ~temperature:0.0 ~prompt
   in
   let%bind completion =
     String.chop_prefix completion ~prefix:prompt
