@@ -6,38 +6,6 @@ open! Async
 let new_word_thresh = 10
 let time_span_thresh = Time_ns.Span.of_sec 10.0
 
-module Mistakes = struct
-  module T = struct
-    type t =
-      | Drug_to_drug of { first : string; second : string }
-      | Drug_allergy of string
-      | Wrong_side
-      | Wrong_site of { actual : string; wrong : string }
-    [@@deriving sexp, compare, yojson]
-  end
-
-  include T
-  include Comparable.Make (T)
-
-  let%expect_test "empty list" =
-    [%yojson_of: t list] [] |> Yojson.Safe.to_string |> print_endline;
-    [%expect {| [] |}];
-    Deferred.unit
-
-  let%expect_test "all possible" =
-    [%yojson_of: t list]
-      [
-        Drug_to_drug { first = "a"; second = "b" };
-        Drug_allergy "test";
-        Wrong_side;
-        Wrong_site { actual = "a"; wrong = "b" };
-      ]
-    |> Yojson.Safe.to_string |> print_endline;
-    [%expect
-      {| [["Drug_to_drug",{"first":"a","second":"b"}],["Drug_allergy","test"],["Wrong_side"],["Wrong_site",{"actual":"a","wrong":"b"}]] |}];
-    Deferred.unit
-end
-
 type t = {
   mutable transcription : string;
   mutable existing_transcription : string;
@@ -75,6 +43,13 @@ let zmq_pub_socket ctx ~addr =
   Zmq.Socket.bind sync_socket addr;
   socket
 
+let send_to_tabula t to_tabula =
+  print_s [%message "[INFO] Sending to tabula" (to_tabula : To_tabula.t)];
+  [%yojson_of: To_tabula.t] to_tabula
+  |> Yojson.Safe.to_string
+  |> Zmq_async.Socket.send t.mistake_out_socket
+  |> don't_wait_for
+
 let handle_parsed t parsed =
   print_s [%message "[INFO] Parsed" (parsed : Parser.t)];
   let parsed_json = [%yojson_of: Parser.t] parsed |> Yojson.Safe.to_string in
@@ -94,11 +69,23 @@ let ok_process t =
       | None -> true
       | Some time ->
           let time_diff = Time_ns.diff (Time_ns.now ()) time in
-          new_words > new_word_thresh || Time_ns.Span.(time_diff > time_span_thresh))
+          new_words > new_word_thresh
+          || Time_ns.Span.(time_diff > time_span_thresh))
 
 let handle_transcription t text =
   (* CR eddieli: make sure this doesn't include chunk times *)
   t.transcription <- t.transcription ^ text;
+  To_tabula.Transcription t.transcription |> send_to_tabula t;
+  let delta =
+    String.chop_prefix_exn t.transcription ~prefix:t.existing_transcription
+    |> String.lowercase
+  in
+  (match String.is_substring delta ~substring:"proceed" with
+  | true -> To_tabula.Control Proceed |> send_to_tabula t
+  | false -> ());
+  (match String.is_substring delta ~substring:"dismiss" with
+  | true -> To_tabula.Control Dismiss |> send_to_tabula t
+  | false -> ());
   match ok_process t with
   | false -> Deferred.unit
   | true -> (
@@ -126,13 +113,9 @@ let handle_mistake t text =
     | true -> Deferred.Or_error.ok_unit
     | false ->
         let new_mistakes = Set.to_list new_mistakes in
-        print_s [%message "[INFO] New mistakes" (new_mistakes : Mistakes.t list)];
-        let new_mistakes_json =
-          [%yojson_of: Mistakes.t list] new_mistakes |> Yojson.Safe.to_string
-        in
-        let%bind () =
-          Zmq_async.Socket.send t.mistake_out_socket new_mistakes_json
-        in
+        print_s
+          [%message "[INFO] New mistakes" (new_mistakes : Mistakes.t list)];
+        To_tabula.Mistakes new_mistakes |> send_to_tabula t;
         Deferred.Or_error.ok_unit
   in
   match%bind _handle_or_error () with

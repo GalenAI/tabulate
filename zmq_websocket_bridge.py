@@ -10,6 +10,7 @@ async def bridge(websocket):
 
     while True:
         message = socket.recv()
+        print(message)
         await websocket.send(message)
 
 async def main():
