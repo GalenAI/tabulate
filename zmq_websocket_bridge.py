@@ -6,7 +6,10 @@ async def bridge(websocket):
     ctx = zmq.Context()
     socket = ctx.socket(zmq.SUB)
     socket.connect('ipc:///tmp/tabula')
+    socket.setsockopt(zmq.CONFLATE, 1)
     socket.subscribe('')
+
+    print("[INFO] Inited zmq...")
 
     while True:
         message = socket.recv()
