@@ -45,8 +45,7 @@ let zmq_pub_socket ctx ~addr =
 
 let send_to_tabula t to_tabula =
   print_s [%message "[INFO] Sending to tabula" (to_tabula : To_tabula.t)];
-  [%yojson_of: To_tabula.t] to_tabula
-  |> Yojson.Safe.to_string
+  to_tabula |> To_tabula.to_jsonaf |> Jsonaf.to_string
   |> Zmq_async.Socket.send t.mistake_out_socket
   |> don't_wait_for
 

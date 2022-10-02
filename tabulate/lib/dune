@@ -2,4 +2,4 @@
  (name tabulate)
  (inline_tests)
  (preprocess (pps ppx_jane ppx_yojson_conv))
- (libraries async core zmq zmq-async))
+ (libraries async core zmq zmq-async jsonaf))

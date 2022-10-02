@@ -7,4 +7,6 @@ type t =
   | Wrong_site of { actual : string; wrong : string }
 [@@deriving sexp, compare, yojson]
 
+val to_str : t -> string
+
 include Comparable.S with type t := t
