@@ -39,7 +39,7 @@ def get_interactions(drug_names, sim_graph, id_to_name, name_to_id):
     """
     drug_ids = [name_to_id[name] for name in drug_names if name in name_to_id]
     sub_graph = sim_graph.GetSubGraph(drug_ids)
-    return [(id_to_name[ei.GetSrcNId()], id_to_name[ei.getDstNId()]) for ei in sub_graph.Edges()]
+    return [(id_to_name[ei.GetSrcNId()], id_to_name[ei.GetDstNId()]) for ei in sub_graph.Edges()]
 
 def test_intersections():
     """
