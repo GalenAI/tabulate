@@ -73,18 +73,20 @@ let ok_process t =
 
 let handle_transcription t text =
   (* CR eddieli: make sure this doesn't include chunk times *)
-  t.transcription <- t.transcription ^ text;
-  To_tabula.Transcription t.transcription |> send_to_tabula t;
-  let delta =
-    String.chop_prefix_exn t.transcription ~prefix:t.existing_transcription
-    |> String.lowercase
-  in
-  (match String.is_substring delta ~substring:"proceed" with
+  (match String.is_substring text ~substring:"proceed" with
   | true -> To_tabula.Control Proceed |> send_to_tabula t
   | false -> ());
-  (match String.is_substring delta ~substring:"dismiss" with
+  (match String.is_substring text ~substring:"dismiss" with
   | true -> To_tabula.Control Dismiss |> send_to_tabula t
   | false -> ());
+  let text =
+    String.substr_replace_all text ~pattern:"Proceed" ~with_:""
+    |> String.substr_replace_all ~pattern:"proceed" ~with_:""
+    |> String.substr_replace_all ~pattern:"Dismiss" ~with_:""
+    |> String.substr_replace_all ~pattern:"dismiss" ~with_:""
+  in
+  t.transcription <- t.transcription ^ text;
+  To_tabula.Transcription t.transcription |> send_to_tabula t;
   match ok_process t with
   | false -> Deferred.unit
   | true -> (
