@@ -1,0 +1,5 @@
+(executable
+ (public_name tabulate)
+ (name main)
+ (preprocess (pps ppx_jane))
+ (libraries async core tabulate))
