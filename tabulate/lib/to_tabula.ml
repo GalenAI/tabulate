@@ -1,4 +1,5 @@
 open Core
+open Async
 
 module Control = struct
   type t = Proceed | Dismiss [@@deriving sexp, yojson]
