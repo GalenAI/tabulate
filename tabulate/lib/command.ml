@@ -73,10 +73,11 @@ let ok_process t =
 
 let handle_transcription t text =
   (* CR eddieli: make sure this doesn't include chunk times *)
-  (match String.is_substring text ~substring:"proceed" with
+  let match_text = String.lowercase text in
+  (match String.is_substring match_text ~substring:"proceed" with
   | true -> To_tabula.Control Proceed |> send_to_tabula t
   | false -> ());
-  (match String.is_substring text ~substring:"dismiss" with
+  (match String.is_substring match_text ~substring:"dismiss" with
   | true -> To_tabula.Control Dismiss |> send_to_tabula t
   | false -> ());
   let text =
