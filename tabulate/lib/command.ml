@@ -73,7 +73,6 @@ let ok_process t =
              && not (String.( = ) t.transcription t.existing_transcription))
 
 let handle_transcription t text =
-  (* CR eddieli: make sure this doesn't include chunk times *)
   let match_text = String.lowercase text in
   (match String.is_substring match_text ~substring:"proceed" with
   | true -> To_tabula.Control Proceed |> send_to_tabula t
@@ -86,6 +85,7 @@ let handle_transcription t text =
     |> String.substr_replace_all ~pattern:"proceed" ~with_:""
     |> String.substr_replace_all ~pattern:"Dismiss" ~with_:""
     |> String.substr_replace_all ~pattern:"dismiss" ~with_:""
+    |> String.substr_replace_all ~pattern:"Thanks for watching" ~with_:""
   in
   t.transcription <- t.transcription ^ text;
   To_tabula.Transcription t.transcription |> send_to_tabula t;
